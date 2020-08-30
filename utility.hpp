@@ -11,6 +11,8 @@
 #include<arpa/inet.h>
 #include<errno.h>
 
+typedef unsigned long IDTp;
+
 enum {
     SERV_PORT = 60000U,
     LINSTENQ = 1024,
@@ -23,10 +25,17 @@ enum {
 enum state {
     NONE= 0,
     CONNECTED,
+    CHOSESIGNINORUP,
+    INSIGNIN,
+    INSIGNUP1,
+    INSIGNUP2,
     LOGINED,
     PEERSET
 };
-
+enum sign{
+    SIGN_IN,
+    SIGN_UP
+};
 
 class User{
 
@@ -48,55 +57,94 @@ public:
     //virtual ~User(){};
     
 
-    void setID(unsigned long ID_){
-        ID = ID_;
-    }
-    void setname(std::string name_){
-        name = name_;
-    }
-    void setipaddr(std::string ipaddr_){
-        ipaddr = ipaddr_;
-    }
-
-    void setpeeruser(User* peeruser_){
-        peeruser = peeruser_;
-    }
-    void setsts(state sts_){
-        sts = sts_;
-    }
-    void setsockfd(int sockfd_){
-        sockfd = sockfd_;
-    }
-
-    unsigned long getID()const{
-        return ID;
-    }
-    std::string getname()const{
-        return name;
-    }
-    std::string getipaddr()const{
-        return ipaddr;
-    }
-    User* getpeeruser()const{
-        return peeruser;
-    }
-
-    state getsts()const{
-        return sts;
-    }    
-    int getsockfd()const{
-        return sockfd;
-    }
 
 private:
-    unsigned long ID;
+    IDTp ID;
+    std::string passwd;
+    std::string passwdchck;
     std::string name; 
     std::string ipaddr;
     User* peeruser;
     state sts;    
     int sockfd;
+
+public:
+    void setID(IDTp ID_){
+        ID = ID_;
+    }
+    IDTp getID()const{
+        return ID;
+    }
+    void setpasswd(std::string passwd_){
+        passwd = passwd_;
+    }
+    std::string getpasswd(){
+        return passwd;
+    }
+    void setpasswdchck(std::string passwdchck_){
+        passwdchck = passwdchck_;
+    }
+    std::string getpasswdchck(){
+        return passwdchck;
+    }
+
+    void setname(std::string name_){
+        name = name_;
+    }
+    std::string getname()const{
+        return name;
+    }
+
+    void setipaddr(std::string ipaddr_){
+        ipaddr = ipaddr_;
+    }
+    std::string getipaddr()const{
+        return ipaddr;
+    }
+
+    void setpeeruser(User* peeruser_){
+        peeruser = peeruser_;
+    }
+    User* getpeeruser()const{
+        return peeruser;
+    }
+
+    void setsts(state sts_){
+        sts = sts_;
+    }
+    state getsts()const{
+        return sts;
+    }    
+
+    void setsockfd(int sockfd_){
+        sockfd = sockfd_;
+    }
+    int getsockfd()const{
+        return sockfd;
+    }
 };
 
+class Friend{
+public:
+    void setID(IDTp ID_){
+        ID = ID_;
+    }
+    IDTp getID(){
+        return ID;
+    }
+
+    void setOnlineSts(bool isOnline_){
+        isOnline = isOnline_;
+    }
+    bool getOnlineSts(){
+        return isOnline;
+    }
+
+private:
+    IDTp ID;
+    bool isOnline;
+
+};
 /*
 bool operator<(User u1, User u2){
     return u1.sockfd < u2.sockfd;

@@ -8,6 +8,10 @@
 #include"dealconnmsg.hpp"
 #include"dealloginedmsg.hpp"
 #include"dealmsg.hpp"
+#include"dealsigninorup.hpp"
+#include"dealsignin.hpp"
+#include"dealsignup1.hpp"
+#include"dealsignup2.hpp"
 
 using namespace std;
 int max(int a, int b){
@@ -65,7 +69,9 @@ int main(int argc, char** argv){
             maxfd = max(connfd, maxfd);
             FD_SET(connfd, &allset);
             //fds.insert(connfd);
-            char buf[] = "please input the ID and name(divided by\",\") ^_^\n";
+            //char buf[] = "please input the ID and name(divided by\",\") ^_^\n";
+            //write(connfd,  buf, sizeof(buf));
+            char buf[] = "signe in or sign up? input\"sign in\" or \"sign up\"\n";
             write(connfd,  buf, sizeof(buf));
         }
 
@@ -102,7 +108,18 @@ int main(int argc, char** argv){
 
                         if(iteruserbysockfd->second->getsts() == CONNECTED){
                             cout << "Connected" <<endl;
-                            dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
+                            dealsigninorup(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                            //dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
+                        }
+                        else if(iteruserbysockfd->second->getsts() == INSIGNIN){
+                            dealsignin(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                        }
+                        else if(iteruserbysockfd->second->getsts() == INSIGNUP1){
+                            dealsignup1(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                        }
+                        else if(iteruserbysockfd->second->getsts() == INSIGNUP2){
+                            dealsignup2(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                            // create user.here.
                         }
                         else if(iteruserbysockfd->second->getsts() == LOGINED){
                             cout << "logined" <<endl;

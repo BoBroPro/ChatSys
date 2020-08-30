@@ -4,7 +4,8 @@ all: client.out server.out
 
 client.out: client.o
 	$(CC) $(FLAG) $^ -o $@
-server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o
+server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o
+
 	$(CC) $(FLAG) $^ -o $@
 
 client.o: client.cpp utility.hpp
@@ -29,6 +30,18 @@ IDandname.o: IDandname.cpp IDandname.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
 ultoa.o: ultoa.cpp ultoa.hpp utility.hpp 
+	$(CC) $(FLAG) -c $< -o $@
+
+dealsigninorup.o: dealsigninorup.cpp dealsigninorup.hpp utility.hpp
+	$(CC) $(FLAG) -c $< -o $@
+
+dealsignin.o: dealsignin.cpp dealsignin.hpp utility.hpp
+	$(CC) $(FLAG) -c $< -o $@
+
+dealsignup1.o: dealsignup1.cpp dealsignup1.hpp IDandname.cpp IDandname.hpp utility.hpp
+	$(CC) $(FLAG) -c $< -o $@
+
+dealsignup2.o: dealsignup2.cpp dealsignup2.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
 .PHONY: clean
