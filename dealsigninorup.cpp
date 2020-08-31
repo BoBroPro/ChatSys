@@ -6,7 +6,7 @@ using namespace std;
 
 int dealsigninorup(int sockfd, User* puser, char* str, size_t n){
     const char* msg;
-    
+    str[n] = 0;
     if(strcmp(str, "sign in\n") == 0){
         msg = "please input ID and password,divided by \",\" for sign in\n";
         puser->setsts(INSIGNIN);

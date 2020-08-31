@@ -29,6 +29,7 @@ enum state {
     INSIGNIN,
     INSIGNUP1,
     INSIGNUP2,
+    INSIGNUP3,
     LOGINED,
     PEERSET
 };
@@ -42,7 +43,8 @@ class User{
     //friend bool  operator<(User u1, User u2);
     //friend bool operator==(User u1, User u2);
 public:
-    User():ID(0),name(""),ipaddr(""),peeruser(NULL),sts(NONE){}
+    User() : ID(0), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
+    User(IDTp ID_, std::string passwd):ID(ID_), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
     //User(int sockfd_):sockfd(sockfd_){};
     User(const User& user) = delete;
     User(User&& user){
@@ -67,6 +69,7 @@ private:
     User* peeruser;
     state sts;    
     int sockfd;
+    
 
 public:
     void setID(IDTp ID_){

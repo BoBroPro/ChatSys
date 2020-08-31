@@ -12,6 +12,7 @@
 #include"dealsignin.hpp"
 #include"dealsignup1.hpp"
 #include"dealsignup2.hpp"
+#include"dealsignup3.hpp"
 
 using namespace std;
 int max(int a, int b){
@@ -61,17 +62,18 @@ int main(int argc, char** argv){
             cout << connfd << endl;
             inet_ntop(AF_INET, &cliaddr, strip, sizeof(strip)); 
             //printf("the peer ip: %s\n", strip);
+
+            
             User* puser = new User();
             puser->setipaddr(string(strip));
             puser->setsts(CONNECTED);
             usersbysockfd.emplace(connfd, puser);
-
+            
+           
             maxfd = max(connfd, maxfd);
             FD_SET(connfd, &allset);
-            //fds.insert(connfd);
-            //char buf[] = "please input the ID and name(divided by\",\") ^_^\n";
-            //write(connfd,  buf, sizeof(buf));
-            char buf[] = "signe in or sign up? input\"sign in\" or \"sign up\"\n";
+
+            char buf[] = "sign in or sign up? input\"sign in\" or \"sign up\"\n";
             write(connfd,  buf, sizeof(buf));
         }
 
@@ -88,14 +90,17 @@ int main(int argc, char** argv){
                     if(iterfd->second->getpeeruser()){
                         iterfd->second->getpeeruser()->setsts(LOGINED);
                         const char buf[] = "the peer has logined out, input \"!!to ID\" to chat with user ID\n";
+                        iterfd->second->setsts(LOGINED);
                         write(iterfd->second->getpeeruser()->getsockfd(), buf, sizeof(buf));
                     }
                     usersbysockfd.erase(iterfd);
+                    /*
                     auto it = usersbyID.find(iterfd->second->getID());
                     if(it != usersbyID.end()){
                         usersbyID.erase(it); 
                     }
-                    cout <<  "has delected the user"<<endl;
+                    */
+                    cout <<  "has deleted the user"<<endl;
                     iterfd= usersbysockfd.begin(); 
                     continue;
                 }
@@ -112,14 +117,20 @@ int main(int argc, char** argv){
                             //dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
                         }
                         else if(iteruserbysockfd->second->getsts() == INSIGNIN){
-                            dealsignin(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                            delete iteruserbysockfd->second;
+                            iteruserbysockfd->second = nullptr;
+                            dealsignin(iteruserbysockfd, &usersbysockfd, &usersbyID, recvline, n);
                         }
                         else if(iteruserbysockfd->second->getsts() == INSIGNUP1){
-                            dealsignup1(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
-                        }
+                            dealsignup1(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
+                        } 
                         else if(iteruserbysockfd->second->getsts() == INSIGNUP2){
                             dealsignup2(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
-                            // create user.here.
+                        }
+                        else if(iteruserbysockfd->second->getsts() == INSIGNUP3){
+                            dealsignup3(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,recvline, n);
+                            cout << "ID is emplaced" << iteruserbysockfd->second->getID()<<endl;
+                            usersbyID.emplace(iteruserbysockfd->second->getID(), iteruserbysockfd->second);
                         }
                         else if(iteruserbysockfd->second->getsts() == LOGINED){
                             cout << "logined" <<endl;

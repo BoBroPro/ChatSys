@@ -59,7 +59,6 @@ int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyI
                     p[strlen(strtmp)] = 0;
                 }
             }
-
             else{
                 strtmp = "This user is not logined\n";
                 memcpy(msg, strtmp, strlen(strtmp));

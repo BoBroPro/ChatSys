@@ -1,10 +1,12 @@
 CC := g++
 FLAG:= -std=c++17 
+
 all: client.out server.out
 
 client.out: client.o
 	$(CC) $(FLAG) $^ -o $@
-server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o
+server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o \
+dealsignup3.o
 
 	$(CC) $(FLAG) $^ -o $@
 
@@ -43,6 +45,8 @@ dealsignup1.o: dealsignup1.cpp dealsignup1.hpp IDandname.cpp IDandname.hpp utili
 
 dealsignup2.o: dealsignup2.cpp dealsignup2.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
+
+dealsignup3.o: dealsignup3.cpp dealsignup3.hpp utility.hpp
 
 .PHONY: clean
 clean:

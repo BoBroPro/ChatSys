@@ -8,7 +8,7 @@ int main(int argc, char** argv){
     memset(&servaddr, 0, sizeof(servaddr));
 
     if(argc != 2){
-        printf("Just IP<addresss> needs to input");
+        printf("Just IP<addresss> needs to input\n");
         return(-1);
     }
 

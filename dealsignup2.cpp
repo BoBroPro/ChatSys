@@ -12,11 +12,13 @@ int dealsignup2(int sockfd, User* puser, char* str, size_t n){
     }
     passwd[i] = 0;
     if(strcmp(passwd, puser->getpasswdchck().c_str()) == 0){
-        msg = "sign up successfully, and you have signed in\n";
-        puser->setsts(LOGINED);
+        msg = "please input your name\n";
+        puser->setsts(INSIGNUP3);
+        puser->setpasswd(string(passwd));
+        cout << "the passwd: " << string(passwd)<<endl;
     }
     else{
-        msg = "password inconsistency. input password again\n";
+        msg = "password inconsistency. input ID and password again\n";
         puser->setsts(INSIGNUP1); 
     }
     write(sockfd, msg, strlen(msg));
