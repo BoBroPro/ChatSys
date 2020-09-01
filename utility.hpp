@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include<arpa/inet.h>
 #include<errno.h>
+#include<list>
+#include<queue>
 
 typedef unsigned long IDTp;
 
@@ -18,7 +20,6 @@ enum {
     LINSTENQ = 1024,
     MAXCONNUM = 1024,
     MAXBUFLEN = 1024,
-
 };
 
 
@@ -33,10 +34,14 @@ enum state {
     LOGINED,
     PEERSET
 };
-enum sign{
-    SIGN_IN,
-    SIGN_UP
+/*
+enum cmd{
+    ADD_FRIEND,
+    DELET_FRIEND,
+    LIST_ONLINE_FRIEND,
 };
+
+*/
 
 class User{
 
@@ -68,8 +73,12 @@ private:
     std::string ipaddr;
     User* peeruser;
     state sts;    
-    int sockfd;
     
+    int sockfd;
+    std::list<IDTp> friends;
+    std::list<IDTp> vrfyfrds;   
+    std::list<IDTp> addfrds;   
+    std::queue<std::string> msgsnotread;
 
 public:
     void setID(IDTp ID_){
@@ -125,8 +134,30 @@ public:
     int getsockfd()const{
         return sockfd;
     }
+
+    std::list<IDTp>* getpfrds(){
+        return &friends;
+    }
+    std::list<IDTp>* getpvrfyfrds(){
+        return &vrfyfrds;
+    }
+    std::list<IDTp>* getpaddfrds(){
+        return &addfrds;
+    }
+    std::queue<std::string>* getpmsgsnotread(){
+        return &msgsnotread;
+    } 
+
+    void readmsg(){
+        while(!msgsnotread.empty()){
+            std::string msg = msgsnotread.front();
+            write(sockfd, msg.c_str(), msg.size());
+            msgsnotread.pop();
+        }
+    }
 };
 
+/*
 class Friend{
 public:
     void setID(IDTp ID_){
@@ -148,6 +179,7 @@ private:
     bool isOnline;
 
 };
+*/
 /*
 bool operator<(User u1, User u2){
     return u1.sockfd < u2.sockfd;

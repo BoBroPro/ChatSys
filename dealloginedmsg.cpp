@@ -18,8 +18,9 @@ int main(){
 */
 int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  char* str, size_t n){
 
-    char msg[50];
     const char* strtmp;
+    string msg;
+    char IDbuf[20];
     if(n < 2){
         goto formatmsg; // ID format error
     }
@@ -38,33 +39,26 @@ int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyI
                 puser->setpeeruser(it->second);
                 it->second->setpeeruser(puser);
                 puser->setsts(PEERSET);
-                it->second->setsts(PEERSET);
 
-                strtmp = "Find the user:(";
-                ntmp = strlen(strtmp);
-                memcpy(msg, strtmp, ntmp);
-                p = msg + ntmp;
-                if((cnt = ultoa(p, sizeof(msg)-ntmp, IDtmp)) < 0){
+                msg = string("Find the user:(");
+                if((cnt = ultoa(IDbuf, sizeof(IDbuf), IDtmp)) < 0){
                     // pending buf is to small.
                 }
                 else{
-                    p += cnt; 
-                    p[0] = ',';
-                    p++;
-                    const char* name = it->second->getname().c_str();
-                    memcpy(p, name, strlen(name));
-                    p += strlen(name);
-                    strtmp = "), and you can chat now!\n";
-                    memcpy(p, strtmp, strlen(strtmp));
-                    p[strlen(strtmp)] = 0;
+                    msg.append(string(IDbuf)).append(",").append(it->second->getname());
+                    if(it->second->getsts()!= PEERSET && it->second->getsts() != LOGINED){
+                        msg.append("), but the peer doesnt sign in. you can still send messages and the peer will read the message untill signing in\n");
+                    }
+                    else{
+                        it->second->setsts(PEERSET);
+                        msg.append(string(IDbuf)).append(",").append(it->second->getname()).append("), and you can chat now!\n");
+                    }
                 }
             }
             else{
-                strtmp = "This user is not logined\n";
-                memcpy(msg, strtmp, strlen(strtmp));
-                msg[strlen(strtmp)] = 0;
+                msg = string("This user does not exist\n");
             }
-            write(sockfd, msg, strlen(msg)+1);
+            write(sockfd, msg.c_str(), msg.size());
             return 0;
         }
     }
@@ -73,8 +67,7 @@ int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyI
     }
 
 formatmsg:
-    strtmp = "format of input error, (like\"!!to 1234\")"; 
-    memcpy(msg, strtmp, strlen(strtmp)+1);
-    write(sockfd, msg, strlen(msg)+1);
+    msg = move(string("format of input error, (like\"!!to 1234\")")); 
+    write(sockfd, msg.c_str(), msg.size());
     return 0;
 };

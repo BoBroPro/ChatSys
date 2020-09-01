@@ -4,7 +4,6 @@
 #include"dealsignin.hpp"
 
 using namespace std;
-
 int dealsignin(map<int, User*>::iterator iterfd, map<int, User*>* pusersbysockfd, map<IDTp, User*>* pusersbyID, char* str, size_t n){
     IDTp IDtmp;
     char passwd[100];
@@ -23,9 +22,11 @@ int dealsignin(map<int, User*>::iterator iterfd, map<int, User*>* pusersbysockfd
             if(strcmp(passwd, it->second->getpasswd().c_str()) == 0){
                 msg = "sign in successfully!\n";
                 it->second->setsts(LOGINED);
-                delete iterfd->second;
                 iterfd->second= it->second;
                 it->second->setsockfd(iterfd->first);
+                write(iterfd->first, msg, strlen(msg));
+                it->second->readmsg(); 
+                return 0;
             }
             else{
                 msg = "wrong password, please try again.\n";
@@ -36,7 +37,7 @@ int dealsignin(map<int, User*>::iterator iterfd, map<int, User*>* pusersbysockfd
     }
 
 
-    msg = "the user has not logged in yet\n, and chose another user.";
+    msg = "the user doesn't exist\n";
     goto writefd;
     
     

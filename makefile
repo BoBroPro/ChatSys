@@ -6,7 +6,7 @@ all: client.out server.out
 client.out: client.o
 	$(CC) $(FLAG) $^ -o $@
 server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o \
-dealsignup3.o
+dealsignup3.o puserfrommapID.o 
 
 	$(CC) $(FLAG) $^ -o $@
 
@@ -47,6 +47,10 @@ dealsignup2.o: dealsignup2.cpp dealsignup2.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
 dealsignup3.o: dealsignup3.cpp dealsignup3.hpp utility.hpp
+	$(CC) $(FLAG) -c $< -o $@
+
+puserfrommapID.o: puserfrommapID.cpp puserfrommapID.hpp utility.hpp
+	$(CC) $(FLAG) -c $< -o $@
 
 .PHONY: clean
 clean:

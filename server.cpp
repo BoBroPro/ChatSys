@@ -90,17 +90,10 @@ int main(int argc, char** argv){
                     if(iterfd->second->getpeeruser()){
                         iterfd->second->getpeeruser()->setsts(LOGINED);
                         const char buf[] = "the peer has logined out, input \"!!to ID\" to chat with user ID\n";
-                        iterfd->second->setsts(LOGINED);
+                        iterfd->second->setsts(NONE);
                         write(iterfd->second->getpeeruser()->getsockfd(), buf, sizeof(buf));
                     }
                     usersbysockfd.erase(iterfd);
-                    /*
-                    auto it = usersbyID.find(iterfd->second->getID());
-                    if(it != usersbyID.end()){
-                        usersbyID.erase(it); 
-                    }
-                    */
-                    cout <<  "has deleted the user"<<endl;
                     iterfd= usersbysockfd.begin(); 
                     continue;
                 }
@@ -108,7 +101,6 @@ int main(int argc, char** argv){
                 else{
                     //cout << "this is recvline: " << recvline<<endl;
                     map<int, User*>::iterator iteruserbysockfd;
-                    cout << "here"<<endl;
                     if((iteruserbysockfd = usersbysockfd.find(iterfd->first)) != usersbysockfd.end()){
 
                         if(iteruserbysockfd->second->getsts() == CONNECTED){
@@ -129,15 +121,10 @@ int main(int argc, char** argv){
                         }
                         else if(iteruserbysockfd->second->getsts() == INSIGNUP3){
                             dealsignup3(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,recvline, n);
-                            cout << "ID is emplaced" << iteruserbysockfd->second->getID()<<endl;
                             usersbyID.emplace(iteruserbysockfd->second->getID(), iteruserbysockfd->second);
                         }
-                        else if(iteruserbysockfd->second->getsts() == LOGINED){
-                            cout << "logined" <<endl;
-                            dealloginedmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
-
-                        }
                         else{
+                            cout << "logined" <<endl;
                             dealmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
                         }
             

@@ -14,6 +14,7 @@ int ultoa(char* str, size_t n, unsigned long num){
         str[i] = '0' + d;
         ++i;
     }
+    str[i] = 0;
     cnt = i;
     for(i = 0, j = cnt-1; i < j; i++, j--){
         char ch;
