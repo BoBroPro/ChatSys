@@ -12,6 +12,10 @@
 #include<errno.h>
 #include<list>
 #include<queue>
+#include"json.hpp"
+#include"hiredisutility.hpp"
+
+using json = nlohmann::json;
 
 typedef unsigned long IDTp;
 
@@ -45,6 +49,8 @@ enum cmd{
 
 class User{
 
+friend void to_json(json& j, const User& u);
+friend void from_json(const json& j, User& u);
     //friend bool  operator<(User u1, User u2);
     //friend bool operator==(User u1, User u2);
 public:
@@ -52,16 +58,40 @@ public:
     User(IDTp ID_, std::string passwd):ID(ID_), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
     //User(int sockfd_):sockfd(sockfd_){};
     User(const User& user) = delete;
+
     User(User&& user){
         this->ID = user.ID;
         this->name = user.name;
         this->ipaddr = user.ipaddr;
         this->peeruser = user.peeruser;
+        this->passwd = user.passwd;
         this->sts = user.sts;
- //       this->sockfd = user.sockfd;
+        this->sockfd = user.sockfd;
+        this->friends = move(user.friends);
+        this->vrfyfrds = move(user.vrfyfrds);
+        this->addfrds = move(user.addfrds);
+        this->msgsnotread = move(user.msgsnotread);
+        std::cout << "move:" << user.getpasswd() <<std::endl;
+
     }
-    //User operator=(const User& user) = delete;
-    //virtual ~User(){};
+    User& operator=(const User& user) = delete;
+
+    User& operator=(User&& user){
+        this->ID = user.ID;
+        this->name = user.name;
+        this->ipaddr = user.ipaddr;
+        this->peeruser = user.peeruser;
+        this->passwd = user.passwd;
+        this->sts = user.sts;
+        this->sockfd = user.sockfd;
+        this->friends = move(user.friends);
+        this->vrfyfrds = move(user.vrfyfrds);
+        this->addfrds = move(user.addfrds);
+        this->msgsnotread = move(user.msgsnotread);
+        std::cout << "move:" << user.getpasswd() <<std::endl;
+        return *this;
+    }
+    virtual ~User(){};
     
 
 
@@ -78,7 +108,18 @@ private:
     std::list<IDTp> friends;
     std::list<IDTp> vrfyfrds;   
     std::list<IDTp> addfrds;   
-    std::queue<std::string> msgsnotread;
+    std::vector<std::string> msgsnotread;
+
+    std::list<IDTp>::iterator findIDinlist(std::list<IDTp>&l, IDTp ID){
+        std::list<IDTp>::iterator it;
+        for(it = l.begin();it!=l.end(); ++it){
+            if(*it == ID){
+                break;
+            }
+        }
+        return it;
+    }
+
 
 public:
     void setID(IDTp ID_){
@@ -144,50 +185,28 @@ public:
     std::list<IDTp>* getpaddfrds(){
         return &addfrds;
     }
-    std::queue<std::string>* getpmsgsnotread(){
+    std::vector<std::string>* getpmsgsnotread(){
         return &msgsnotread;
     } 
 
     void readmsg(){
-        while(!msgsnotread.empty()){
-            std::string msg = msgsnotread.front();
-            write(sockfd, msg.c_str(), msg.size());
-            msgsnotread.pop();
+        for(auto it = msgsnotread.begin(); it != msgsnotread.end();++it){
+            write(sockfd, it->c_str(), (*it).size());
         }
+        msgsnotread.clear();
     }
-};
-
-/*
-class Friend{
-public:
-    void setID(IDTp ID_){
-        ID = ID_;
-    }
-    IDTp getID(){
-        return ID;
+    
+    std::list<IDTp>::iterator findIDinfrds(IDTp ID){
+        return findIDinlist(friends, ID);
     }
 
-    void setOnlineSts(bool isOnline_){
-        isOnline = isOnline_;
+    std::list<IDTp>::iterator findIDinaddfrds(IDTp ID){
+        return findIDinlist(addfrds, ID);
     }
-    bool getOnlineSts(){
-        return isOnline;
+    std::list<IDTp>::iterator findIDinvrfyfrd(IDTp ID){
+        return findIDinlist(vrfyfrds, ID);
     }
-
-private:
-    IDTp ID;
-    bool isOnline;
 
 };
-*/
-/*
-bool operator<(User u1, User u2){
-    return u1.sockfd < u2.sockfd;
-}
-
-bool operator==(User u1, User u2){
-    return u1.sockfd == u2.sockfd;
-}
-*/
 
 #endif

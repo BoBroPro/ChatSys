@@ -13,6 +13,7 @@
 #include"dealsignup1.hpp"
 #include"dealsignup2.hpp"
 #include"dealsignup3.hpp"
+#include"otherfunc.hpp"
 
 using namespace std;
 int max(int a, int b){
@@ -43,9 +44,10 @@ int main(int argc, char** argv){
 
     bind(listenfd, &servaddr, sizeof(servaddr));
     listen(listenfd,LINSTENQ);
-    maxfd = listenfd;
     FD_ZERO(&allset); 
     FD_SET(listenfd, &allset);
+    FD_SET(fileno(stdin),&allset);
+    maxfd = max(listenfd,fileno(stdin));
     char strip[22];
     printf("hello world\n");
     int d = 0;
@@ -76,7 +78,16 @@ int main(int argc, char** argv){
             char buf[] = "sign in or sign up? input\"sign in\" or \"sign up\"\n";
             write(connfd,  buf, sizeof(buf));
         }
-
+        if(FD_ISSET(fileno(stdin),&rset)){
+            if((n = read(fileno(stdin),recvline, MAXBUFLEN)) == 0){
+                for(auto it = usersbysockfd.begin();it!= usersbysockfd.end();++it){
+                    close(it->first);
+                    cout << "close: " << it->first<<endl;
+                }
+                close(listenfd);
+                return 0;
+            }
+        }
 
         for(auto iterfd = usersbysockfd.begin(); iterfd!= usersbysockfd.end(); ){
             if(FD_ISSET(iterfd->first, &rset)){
@@ -87,14 +98,33 @@ int main(int argc, char** argv){
                     close(iterfd->first);
                     cout << "closed: " << iterfd->second->getID()<<endl;
                     FD_CLR(iterfd->first, &allset);
-                    if(iterfd->second->getpeeruser()){
-                        iterfd->second->getpeeruser()->setsts(LOGINED);
-                        const char buf[] = "the peer has logined out, input \"!!to ID\" to chat with user ID\n";
-                        iterfd->second->setsts(NONE);
+
+                    iterfd->second->setsts(NONE);
+
+                    if(iterfd->second->getsts() == PEERSET){
+
+                        const char buf[] = "the peer has logined out\n";
                         write(iterfd->second->getpeeruser()->getsockfd(), buf, sizeof(buf));
+                        iterfd->second->getpeeruser()->setsts(LOGINED);
+
+                        //write redis
+                        if(writeRedisUser("127.0.0.1", 6379, *iterfd->second) < 0){
+                            cout << "logout, but failed to write redis, because can't connect to the redis" << endl;
+                        };                    
+
                     }
+                    else if(iterfd->second->getsts() == LOGINED){
+                        //write redis
+                        if(writeRedisUser("127.0.0.1", 6379, *iterfd->second) < 0){
+                            cout << "logout, but failed to write redis, because can't connect to the redis" << endl;
+                        };                    
+                    }
+                    
+                    usersbyID.erase(iterfd->second->getID()); 
+                    delete iterfd->second;
                     usersbysockfd.erase(iterfd);
-                    iterfd= usersbysockfd.begin(); 
+
+                    iterfd= usersbysockfd.begin();//It's ok because corresponding rset flag was cleared.
                     continue;
                 }
 
@@ -109,8 +139,6 @@ int main(int argc, char** argv){
                             //dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
                         }
                         else if(iteruserbysockfd->second->getsts() == INSIGNIN){
-                            delete iteruserbysockfd->second;
-                            iteruserbysockfd->second = nullptr;
                             dealsignin(iteruserbysockfd, &usersbysockfd, &usersbyID, recvline, n);
                         }
                         else if(iteruserbysockfd->second->getsts() == INSIGNUP1){

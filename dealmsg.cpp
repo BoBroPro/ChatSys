@@ -6,6 +6,7 @@
 #include"ultoa.hpp"
 #include<iterator>
 #include"puserfrommapID.hpp"
+#include"otherfunc.hpp"
 
 using namespace std;
 
@@ -22,6 +23,7 @@ static string userinfo2str(User* puser){
     string res;
     char IDstr[20];
     ultoa(IDstr,20,puser->getID());
+    cout << "flaguserinfo2str ID: " << IDstr<<endl;
     res.append(string(IDstr)).append(", ").append(puser->getname());
     if(puser->getsts() == LOGINED || puser->getsts() == PEERSET){
         res.append(", Logined\n");
@@ -39,112 +41,165 @@ static bool equalchars(const char* str1, const char* str2, int str2len){
     return i == n;
 }
 
+
 static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp frdID){
-    char msgbuf[50];
-    int cnt = 0;
     string msg;
     map<IDTp, User*>::iterator it;
-    User* ppeeruser;
-    if(puserfrommapID(frdID, pusersbyID, &ppeeruser) < 0){
+    User* pfrdinmap;
+    User frdinredis; 
+    User* pfrd;
+    int where;
+     
+    auto itmyaddfrd = puser->findIDinaddfrds(frdID);
+    if(itmyaddfrd != puser->getpaddfrds()->end()){
+        msg = move(string("the user is already in your friend request list\n"));
+        write(sockfd, msg.c_str(), msg.size());
+        return ;
+    }
+    // check where peer has been your friend yet or not.
+    auto itmyfrd = puser->findIDinfrds(frdID);
+    if(itmyfrd != puser->getpfrds()->end()){
+        msg = move(string("the peer is already your friend\n"));
+        write(sockfd, msg.c_str(), msg.size());
+        return;
+    }
+    
+
+    where = findUser(frdID, pusersbyID, &pfrdinmap, &frdinredis);
+    // no this user
+    if(where < 0){
         msg = string("this user(ID:"); 
         mergestrIDstr(&msg, frdID,") doesn't exists\n");
         write(sockfd, msg.c_str(), msg.size());
         return;
     }
+    //in the map
+    if(where == 0){
+        pfrd = pfrdinmap;
+    }
+    // int the redis
+    if(where == 1){
+         pfrd = &frdinredis;
+    }
 
-    puser->getpaddfrds()->push_back(frdID);
-    //add peer's friend verificaion queue;
-    ppeeruser->getpvrfyfrds()->push_back(puser->getID());
 
+    // check whether you are in the peer's friend list
+    auto itpeerfrd = pfrd->findIDinfrds(puser->getID());
+    if(itpeerfrd != pfrd->getpfrds()->end()){ // in the peer's friend list.
+        modifyRedisUser("127.0.0.1",6379, *puser);
+        puser->getpfrds()->push_back(frdID); // add in your friend list not friend request list.
+    }
+    else{
+        auto itpeerfrd = pfrd->findIDinvrfyfrd(puser->getID());
+        if(itpeerfrd == pfrd->getpvrfyfrds()->end()){
+            //add peer's friend verificaion queue;
+            pfrd->getpvrfyfrds()->push_back(puser->getID());
+        }
+        puser->getpaddfrds()->push_back(frdID);
+        modifyRedisUser("127.0.0.1",6379, *puser);
+        modifyRedisUser("127.0.0.1",6379, *pfrd);
+    }
     // send message
     msg = string("a freind(ID: ");
     mergestrIDstr(&msg,frdID, ",");
-    msg.append(ppeeruser->getname()).append(") requst has been sent\n");
+    msg.append(pfrd->getname()).append(") requst has been sent\n");
     write(sockfd, msg.c_str(),msg.size()); 
-
     return;
 }
 
 static void acptfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp frdID){
 
-    list<IDTp>* pvrfyfrds = puser->getpvrfyfrds();
-    list<IDTp>* paddfrdsreq;
-    User* ppeeruser;
-    list<IDTp>::iterator it;
+    //list<IDTp>* pvrfyfrds = puser->getpvrfyfrds();
+    User *pfrdinmap, *pfrd, frdinredis;
+    int where = 0;
+    list<IDTp>::iterator itfrd, itaddfrd, itvrfyfrd;
     string msg;
-    for(it = pvrfyfrds->begin(); it != pvrfyfrds -> end();++it){
-        // find the friend request
-        if(*it == frdID){
-            puser->getpfrds()->push_back(*it);
-            pvrfyfrds->erase(it);
-            break; 
-        }
-    }
+
+    //check vrfyfriend list 
+    itvrfyfrd = puser->findIDinvrfyfrd(frdID);
     // found nothing
-    if(it == pvrfyfrds->end()){
-        msg = string("the friend with ID:");
-        mergestrIDstr(&msg, frdID, " is not in your friend to be confirmed\n");
+    if(itvrfyfrd == puser->getpvrfyfrds()->end()){
+        msg = string("the friend witvrfyfrdsh ID:");
+        mergestrIDstr(&msg, frdID, " is not in your friend request list\n");
         write(sockfd,msg.c_str(), msg.size());
         return ;
-    } 
-    if((puserfrommapID(frdID, pusersbyID, &ppeeruser)) < 0){
+    }
+    puser->getpvrfyfrds()->erase(itvrfyfrd);
+
+    // check self addfriend list
+    itfrd = puser->findIDinaddfrds(frdID);
+    if(itfrd != puser->getpaddfrds()->end()){
+        puser->getpaddfrds()->erase(itfrd);
+    }
+    // add the frdID in friend list;
+    //check friend list
+    itfrd = puser->findIDinfrds(frdID);
+    if(itfrd == puser->getpfrds()->end()){
+        puser->getpfrds()->push_back(frdID);
+    }
+
+    where = findUser(frdID, pusersbyID, &pfrdinmap, &frdinredis);
+    if(where < 0){ // no this user;
         msg = string("the user with ID:");
         mergestrIDstr(&msg, frdID, " doesn't exit\n");
         write(sockfd,msg.c_str(), msg.size());
         return ;
-    };
-    paddfrdsreq = ppeeruser->getpaddfrds();
-
-    for(it = paddfrdsreq->begin(); it!= paddfrdsreq->end(); ++it){
-        if(*it == puser->getID()){
-            paddfrdsreq->erase(it);
-            ppeeruser->getpfrds()->push_back(puser->getID());
-
-            msg = string("has accepted the friend(");
-            mergestrIDstr(&msg, frdID,",");
-            msg.append(ppeeruser->getname()).append(") request\n");
-            write(sockfd, msg.c_str(), msg.size());
-
-            break;
-        } 
+    }
+    if(0 == where){ // in the map;
+        pfrd = pfrdinmap;
+    }
+    else if(1 == where){ // in the redis
+        pfrd = &frdinredis;
     }
 
-    return;
+    itaddfrd = pfrd->findIDinaddfrds(puser->getID());
+    if(itaddfrd != pfrd->getpaddfrds()->end()){
+        pfrd->getpaddfrds()->erase(itaddfrd);
+    }
 
+    itfrd = pfrd->findIDinvrfyfrd(puser->getID());
+    if(itfrd != pfrd->getpvrfyfrds()->end()) {
+        pfrd->getpvrfyfrds()->erase(itfrd);
+    }
+
+    itfrd = pfrd->findIDinfrds(puser->getID());
+    if(itfrd == pfrd->getpfrds()->end()){
+        // the peer pushs the user into the friend list.
+        pfrd->getpfrds()->push_back(puser->getID());
+    }
+
+    if(modifyRedisUser("127.0.0.1", 6379, *pfrd) < 0){
+        cout << "failed connecting to redis" <<endl;
+    }
+    if(modifyRedisUser("127.0.0.1", 6379, *puser) < 0){
+        cout << "failed connecting to redis" <<endl;
+    }
+
+    msg = string("has accepted the friend(");
+    mergestrIDstr(&msg, frdID,",");
+    msg.append(pfrd->getname()).append(") request\n");
+    write(sockfd, msg.c_str(), msg.size());
+    return;
 }
+
 static void dltfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp frdID){
     list<IDTp>*pfrds = puser->getpfrds();
     list<IDTp>*ppeerfrds;
-    list<IDTp>::iterator it;
-    User* ppeeruser;
+    list<IDTp>::iterator itme, itpeer;
     string msg;
 
-    for(it = pfrds->begin(); it != pfrds->end(); ++it){
-        if(*it == frdID){
-            break; 
-        }
-    }
-    if(it == pfrds->end()){
+    auto itmyfrd = puser->findIDinfrds(frdID);
+    if(itmyfrd == puser->getpfrds()->end()){
         msg = string("err, the user(");
         mergestrIDstr(&msg, frdID,",");
-        msg.append(ppeeruser->getname()).append(") is not your friend\n");
+        msg.append(") is not your friend\n");
         write(sockfd, msg.c_str(), msg.size());
         return ;
     }
 
-    pfrds->erase(it);
-    if((puserfrommapID(frdID, pusersbyID, &ppeeruser))< 0){
-        msg = string("the user with ID:");
-        mergestrIDstr(&msg, frdID, " doesn't exit\n");
-        write(sockfd,msg.c_str(), msg.size());
-        return ;
-    };
-    ppeerfrds= ppeeruser->getpfrds();
-    for(it = ppeerfrds->begin(); it!=ppeerfrds->end(); ++it){
-        if(*it == puser->getID()){
-            ppeerfrds->erase(it);
-            break;
-        }
+    pfrds->erase(itmyfrd);
+    if(modifyRedisUser("127.0.0.1", 6379, *puser) < 0){
+        cout << "failed connecting to redis" <<endl;
     }
     return ;
 }
@@ -164,23 +219,66 @@ static void listfrdonline(int sockfd, User*puser, map<IDTp, User*>* pusersbyID){
     return;
 }
 
+
+
 static void listfriends(int sockfd, list<IDTp>*pfrds, map<IDTp, User*>* pusersbyID){
     string userinfo;
-    for(auto it = pfrds->begin(); it != pfrds->end(); ++ it){
-        map<IDTp, User*>::iterator itusersbyID;
-        if((itusersbyID = pusersbyID->find(*it)) != pusersbyID->end()){ 
-            userinfo = userinfo2str(itusersbyID->second);
-            write(sockfd, userinfo.c_str(), strlen(userinfo.c_str()));
+    User userinredis, *puserinmap, *pfrd;
+    int where = 0; 
+    for(auto it = pfrds->begin(); it != pfrds->end(); ++it){
+        where = findUser(*it, pusersbyID, &puserinmap, &userinredis);
+        if(where < 0){
+            string msg("the user(");
+            mergestrIDstr(&msg, *it, ")doesn't exist\nand deleted it in your friend list\n");
+            write(sockfd, msg.c_str(),msg.size()); 
+            continue;
         }
+        else if(where ==0 ){ // in the map
+            pfrd = puserinmap;
+            cout << " find: ID:" <<pfrd->getID()<<" in map" <<endl;
+        }
+        else if(where == 1){ // in the redis;
+            pfrd = &userinredis; 
+            cout << " find: ID:" <<pfrd->getID()<<" in redis" <<endl;
+        }
+
+        userinfo = userinfo2str(pfrd);
+        write(sockfd, userinfo.c_str(), strlen(userinfo.c_str()));
     }
     return;
 }
 
+static void sendmsg(int sockfd, User& user, User& peeruser,  char* str, size_t n){
+    string msg;
+    char IDbuf[20];
+    ultoa(IDbuf, sizeof(IDbuf), user.getID());
+    string IDstr = string(IDbuf);
+    msg = msg.append(IDstr).append(",").append(user.getname()).append(": ");
+    for(int i = 0; i< n; ++i){
+        msg.push_back(str[i]);
+    }
+    if(peeruser.getsts()!=LOGINED && peeruser.getsts()!=PEERSET){
+        peeruser.getpmsgsnotread()->push_back(msg);
+        // modify user data in  redis
+        if(modifyRedisUser("127.0.0.1", 6379, peeruser) <0){
+            cout << "Failed modifing user data in redis, becauser of wrong connection to redis" << endl;
+        }
+        return ;
+    }
 
+    int peerusersockfd = peeruser.getsockfd();
+    if(peeruser.getsts() == LOGINED){
+        peeruser.setpeeruser(&user);
+        peeruser.setsts(PEERSET);
+    }
+
+    write(peerusersockfd, msg.c_str(), msg.size()+1);    
+
+    return;
+} 
 
 int dealmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  char* str, size_t n){
     string msg;
-    char IDbuf[20];
     const char* addfriend = "addfriend\n";
     const char* dltfriend = "dltfriend\n";
     const char* listfriend = "listfriend\n";
@@ -191,6 +289,7 @@ int dealmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  cha
     const char* listaddfriend= "listaddfriend\n";
     int i = 0; 
     IDTp frdID;
+    User* ppeeruser = puser->getpeeruser();
     if(n > 2){
         if(str[0] == '!' && str[1] == '!'){
             if(n > 4 && equalchars(str+2, "to", 2)){
@@ -218,15 +317,19 @@ int dealmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  cha
                 listfriends(sockfd, puser->getpvrfyfrds(), pusersbyID);
             }
             else if(n >= 2+strlen(listaddfriend) && equalchars(str+2,listaddfriend, strlen(listaddfriend))){
+                for(auto i : *(puser->getpaddfrds())){
+                    cout << "ID: "<< i<<endl;
+                }
                 listfriends(sockfd, puser->getpaddfrds(), pusersbyID);
             }
             else if(n >= 2+strlen(showcmd) && equalchars(str+2, showcmd, strlen(showcmd))){
+                write(sockfd, showcmd, strlen(showcmd));
+                write(sockfd, "to\n", strlen("to\n"));
                 write(sockfd, addfriend, strlen(addfriend));
                 write(sockfd, dltfriend, strlen(dltfriend));
-                write(sockfd, listfriend, strlen(listfriend));
                 write(sockfd, acptfriend, strlen(acptfriend));
+                write(sockfd, listfriend, strlen(listfriend));
                 write(sockfd, listfriendonline, strlen(listfriendonline));
-                write(sockfd, showcmd, strlen(showcmd));
                 write(sockfd, listvrfyfriend, strlen(listvrfyfriend));
                 write(sockfd, listaddfriend, strlen(listaddfriend));
             }
@@ -237,39 +340,22 @@ int dealmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  cha
             return 0;
         }
         else{
-            goto msg;
+            goto sendmsg;
         }
     }
     else{
-        goto msg;
+        goto sendmsg;
     }
 
-msg:
-    // find peeruser
+
+sendmsg:    
     if(puser->getsts() != PEERSET){
         msg = string("input peer ID, such as \"!!to 12345\" starting with \"!!to\"\n");
         write(sockfd,msg.c_str(), msg.size());
         return 0;
     }
 
-    int peerusersockfd = puser->getpeeruser()->getsockfd();
-
-    int cnt = ultoa(IDbuf, sizeof(IDbuf), puser->getID());
-    msg = string(IDbuf).append(",").append(puser->getname()).append(": ");
-    for(int i = 0; i< n; ++i){
-        msg.push_back(str[i]);
-    }
-    cout << "peer stats: " << puser->getpeeruser()->getsts()<<endl;
-    if(puser->getpeeruser()->getsts()!=LOGINED && puser->getpeeruser()->getsts()!=PEERSET){
-        puser->getpeeruser()->getpmsgsnotread()->push(msg);
-        cout << msg <<endl;
-        cout << "push in the msg" <<endl;
-    }
-    else{
-        cout << "jinlaile"<<endl;
-        write(peerusersockfd, msg.c_str(), msg.size()+1);    
-    }
-
+    sendmsg(sockfd, *puser, *puser->getpeeruser(), str, n);
     return 0;
 }
 
