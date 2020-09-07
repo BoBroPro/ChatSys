@@ -24,6 +24,10 @@ int dealsignup3(int sockfd, User* puser, map<IDTp, User*>* pmp, char* str, size_
     if(writeRedisUser("127.0.0.1", 6379, *puser)< 0){
         cout << "Failed writing user data to redis because of wrong connection to redis"<<endl;
     }
+    if(writeMySQLUser(*puser) < 0){
+
+        cout << "Failed writing user data to MySQL"<< endl;
+    }
 
     write(sockfd, msg, strlen(msg));
     return 0;

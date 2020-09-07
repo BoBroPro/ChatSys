@@ -46,7 +46,7 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     string msg;
     map<IDTp, User*>::iterator it;
     User* pfrdinmap;
-    User frdinredis; 
+    User frdinDb; 
     User* pfrd;
     int where;
      
@@ -65,7 +65,7 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     }
     
 
-    where = findUser(frdID, pusersbyID, &pfrdinmap, &frdinredis);
+    where = findUser(frdID, pusersbyID, &pfrdinmap, &frdinDb);
     // no this user
     if(where < 0){
         msg = string("this user(ID:"); 
@@ -77,17 +77,17 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     if(where == 0){
         pfrd = pfrdinmap;
     }
-    // int the redis
-    if(where == 1){
-         pfrd = &frdinredis;
+    // int the redis or mysql where == 1 or where == 2;
+    else{
+        pfrd = &frdinDb;
     }
-
 
     // check whether you are in the peer's friend list
     auto itpeerfrd = pfrd->findIDinfrds(puser->getID());
     if(itpeerfrd != pfrd->getpfrds()->end()){ // in the peer's friend list.
-        modifyRedisUser("127.0.0.1",6379, *puser);
         puser->getpfrds()->push_back(frdID); // add in your friend list not friend request list.
+        writeOrModifyUserRedis(*puser);
+        updateMySQLUser(*puser);
     }
     else{
         auto itpeerfrd = pfrd->findIDinvrfyfrd(puser->getID());
@@ -96,8 +96,10 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
             pfrd->getpvrfyfrds()->push_back(puser->getID());
         }
         puser->getpaddfrds()->push_back(frdID);
-        modifyRedisUser("127.0.0.1",6379, *puser);
-        modifyRedisUser("127.0.0.1",6379, *pfrd);
+        writeOrModifyUserRedis(*puser);
+        writeOrModifyUserRedis(*pfrd);
+        updateMySQLUser(*puser);
+        updateMySQLUser(*pfrd);
     }
     // send message
     msg = string("a freind(ID: ");
@@ -148,7 +150,7 @@ static void acptfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp 
     if(0 == where){ // in the map;
         pfrd = pfrdinmap;
     }
-    else if(1 == where){ // in the redis
+    else{ // in the redis or mysql
         pfrd = &frdinredis;
     }
 
@@ -168,12 +170,10 @@ static void acptfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp 
         pfrd->getpfrds()->push_back(puser->getID());
     }
 
-    if(modifyRedisUser("127.0.0.1", 6379, *pfrd) < 0){
-        cout << "failed connecting to redis" <<endl;
-    }
-    if(modifyRedisUser("127.0.0.1", 6379, *puser) < 0){
-        cout << "failed connecting to redis" <<endl;
-    }
+    writeOrModifyUserRedis((*puser));
+    writeOrModifyUserRedis((*pfrd));
+    updateMySQLUser(*puser);
+    updateMySQLUser(*pfrd);
 
     msg = string("has accepted the friend(");
     mergestrIDstr(&msg, frdID,",");
@@ -198,9 +198,8 @@ static void dltfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     }
 
     pfrds->erase(itmyfrd);
-    if(modifyRedisUser("127.0.0.1", 6379, *puser) < 0){
-        cout << "failed connecting to redis" <<endl;
-    }
+    writeOrModifyUserRedis(*puser); 
+    updateMySQLUser(*puser);
     return ;
 }
 
@@ -237,9 +236,9 @@ static void listfriends(int sockfd, list<IDTp>*pfrds, map<IDTp, User*>* pusersby
             pfrd = puserinmap;
             cout << " find: ID:" <<pfrd->getID()<<" in map" <<endl;
         }
-        else if(where == 1){ // in the redis;
+        else{ // in the redis or mysql;
             pfrd = &userinredis; 
-            cout << " find: ID:" <<pfrd->getID()<<" in redis" <<endl;
+            cout << " find: ID:" <<pfrd->getID()<<" in redis or MySQL" <<endl;
         }
 
         userinfo = userinfo2str(pfrd);
@@ -260,9 +259,8 @@ static void sendmsg(int sockfd, User& user, User& peeruser,  char* str, size_t n
     if(peeruser.getsts()!=LOGINED && peeruser.getsts()!=PEERSET){
         peeruser.getpmsgsnotread()->push_back(msg);
         // modify user data in  redis
-        if(modifyRedisUser("127.0.0.1", 6379, peeruser) <0){
-            cout << "Failed modifing user data in redis, becauser of wrong connection to redis" << endl;
-        }
+        writeOrModifyUserRedis(peeruser);
+        updateMySQLUser(peeruser);
         return ;
     }
 

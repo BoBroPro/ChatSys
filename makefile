@@ -1,14 +1,14 @@
 CC := g++
 FLAG:= -std=c++17 
-LIB:= /usr/local/lib
+LIB:= -L/usr/local/lib -L/usr/lib64/mysql
 all: client.out server.out
 
 client.out: client.o
 	$(CC) $(FLAG) $^ -o $@
 server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o \
-dealsignup3.o puserfrommapID.o otherfunc.o
+dealsignup3.o puserfrommapID.o otherfunc.o 
 
-	$(CC) $(FLAG) -L$(LIB) -lhiredis $^ -o $@
+	$(CC) $(FLAG) $(LIB) -lhiredis -lmysqlclient $^ -o $@
 
 client.o: client.cpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
@@ -54,6 +54,7 @@ puserfrommapID.o: puserfrommapID.cpp puserfrommapID.hpp utility.hpp
 
 otherfunc.o: otherfunc.cpp otherfunc.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
+
 
 utility.hpp: hiredisutility.hpp
 

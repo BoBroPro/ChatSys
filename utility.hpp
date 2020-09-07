@@ -26,7 +26,6 @@ enum {
     MAXBUFLEN = 1024,
 };
 
-
 enum state {
     NONE= 0,
     CONNECTED,
@@ -55,7 +54,7 @@ friend void from_json(const json& j, User& u);
     //friend bool operator==(User u1, User u2);
 public:
     User() : ID(0), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
-    User(IDTp ID_, std::string passwd):ID(ID_), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
+    User(IDTp ID_, std::string passwd_):ID(ID_), passwd(passwd_), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
     //User(int sockfd_):sockfd(sockfd_){};
     User(const User& user) = delete;
 
@@ -189,6 +188,19 @@ public:
         return &msgsnotread;
     } 
 
+    void setfrds(const std::list<IDTp>& frds){
+        friends  = frds;
+    }
+    void setvrfyfrds(const std::list<IDTp>& vrfyfrds_){
+        vrfyfrds = vrfyfrds_;
+    }
+    void setaddfrds(const std::list<IDTp> &addfrds_){
+        addfrds = addfrds_;
+    }
+    void setmsgsnotread(const std::vector<std::string>& msgsnotread_){
+        msgsnotread = msgsnotread_;
+    } 
+
     void readmsg(){
         for(auto it = msgsnotread.begin(); it != msgsnotread.end();++it){
             write(sockfd, it->c_str(), (*it).size());
@@ -206,6 +218,7 @@ public:
     std::list<IDTp>::iterator findIDinvrfyfrd(IDTp ID){
         return findIDinlist(vrfyfrds, ID);
     }
+
 
 };
 

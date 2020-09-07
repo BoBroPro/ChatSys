@@ -10,4 +10,10 @@ std::string redisIDkey(IDTp ID);
 int writeRedisUser(const std::string& ipaddr, PortTp port, const User& user);
 int modifyRedisUser(const std::string& ipaddr, PortTp port, const User& user);
 int findUser(IDTp frdID, std::map<IDTp, User*>* pusersbyID/*and redis*/, User** outppusermap, User* outpuserRedis);
+
+int findUserinMySQL(IDTp ID, User& outuser);
+int writeMySQLUser(User& user);
+int updateMySQLUser(User& user);
+
+void writeOrModifyUserRedis(const User& user);
 #endif
