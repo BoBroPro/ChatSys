@@ -7,6 +7,7 @@
 #include<iterator>
 #include"puserfrommapID.hpp"
 #include"otherfunc.hpp"
+#include"CacheUID.hpp"
 
 using namespace std;
 
@@ -86,7 +87,8 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     auto itpeerfrd = pfrd->findIDinfrds(puser->getID());
     if(itpeerfrd != pfrd->getpfrds()->end()){ // in the peer's friend list.
         puser->getpfrds()->push_back(frdID); // add in your friend list not friend request list.
-        writeOrModifyUserRedis(*puser);
+        CacheUID::push(*puser);        
+        //writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
         updateMySQLUser(*puser);
     }
     else{
@@ -96,8 +98,10 @@ static void addfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
             pfrd->getpvrfyfrds()->push_back(puser->getID());
         }
         puser->getpaddfrds()->push_back(frdID);
-        writeOrModifyUserRedis(*puser);
-        writeOrModifyUserRedis(*pfrd);
+        CacheUID::push(*puser);        
+        //writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
+        CacheUID::push(*pfrd);        
+        //writeOrModifyUserRedis("127.0.0.1", 6379,*pfrd);
         updateMySQLUser(*puser);
         updateMySQLUser(*pfrd);
     }
@@ -170,8 +174,10 @@ static void acptfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp 
         pfrd->getpfrds()->push_back(puser->getID());
     }
 
-    writeOrModifyUserRedis((*puser));
-    writeOrModifyUserRedis((*pfrd));
+    CacheUID::push(*puser);        
+    CacheUID::push(*pfrd);        
+    //writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
+    //writeOrModifyUserRedis("127.0.0.1", 6379,*pfrd);
     updateMySQLUser(*puser);
     updateMySQLUser(*pfrd);
 
@@ -198,7 +204,8 @@ static void dltfrd(int sockfd, User* puser, map<IDTp, User*>* pusersbyID, IDTp f
     }
 
     pfrds->erase(itmyfrd);
-    writeOrModifyUserRedis(*puser); 
+    CacheUID::push(*puser);        
+    //writeOrModifyUserRedis("127.0.0.1", 6379,*puser); 
     updateMySQLUser(*puser);
     return ;
 }
@@ -238,6 +245,7 @@ static void listfriends(int sockfd, list<IDTp>*pfrds, map<IDTp, User*>* pusersby
         }
         else{ // in the redis or mysql;
             pfrd = &userinredis; 
+            CacheUID::push(*pfrd);        
             cout << " find: ID:" <<pfrd->getID()<<" in redis or MySQL" <<endl;
         }
 
@@ -259,7 +267,8 @@ static void sendmsg(int sockfd, User& user, User& peeruser,  char* str, size_t n
     if(peeruser.getsts()!=LOGINED && peeruser.getsts()!=PEERSET){
         peeruser.getpmsgsnotread()->push_back(msg);
         // modify user data in  redis
-        writeOrModifyUserRedis(peeruser);
+        CacheUID::push(peeruser);        
+        //writeOrModifyUserRedis("127.0.0.1", 6379,peeruser);
         updateMySQLUser(peeruser);
         return ;
     }

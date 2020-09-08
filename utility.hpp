@@ -12,6 +12,7 @@
 #include<errno.h>
 #include<list>
 #include<queue>
+#include<vector>
 #include"json.hpp"
 #include"hiredisutility.hpp"
 

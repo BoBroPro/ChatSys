@@ -5,7 +5,7 @@
 #include"hiredis/hiredis.h"
 #include"ultoa.hpp"
 #include"otherfunc.hpp"
-
+#include"CacheUID.hpp"
 using namespace std;
 
 
@@ -21,7 +21,8 @@ static void succlogin(User*puser, map<int, User*>::iterator iterfd){
         write(iterfd->first, msg.c_str(), msg.size());
         puser->readmsg(); 
     }
-    writeOrModifyUserRedis(*puser);
+    
+    writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
     updateMySQLUser(*puser);
     msg = "You can input \"!!to <ID>\"to Chat with user identified by ID number.\n";
     write(iterfd->first, msg.c_str(), msg.size());

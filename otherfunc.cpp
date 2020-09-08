@@ -82,17 +82,29 @@ int modifyRedisUser(const string& ipaddr, PortTp port, const User& user){
     return 0;
 }
 
-void writeOrModifyUserRedis(const User& user){
+void writeOrModifyUserRedis(string ipaddr, PortTp port, const User& user){
 
     User usernouse;
-    if(findinredis("127.0.0.1",6379, user.getID(),usernouse) < 0){
-        writeRedisUser("127.0.0.1", 6379, user);
+    if(findinredis(ipaddr, port, user.getID(),usernouse) < 0){
+        writeRedisUser(ipaddr, port, user);
     }
     else{
-        modifyRedisUser("127.0.0.1",6379, user);
+        modifyRedisUser(ipaddr, port, user);
     }
     return;
 }
+
+int delUserRedis(string ipaddr, PortTp port, IDTp ID){
+
+    CHiredis chiredis(ipaddr, port);
+    if(chiredis.geterr()<0){
+        return -1;
+    }
+    string key = redisIDkey(ID);
+    chiredis.del(key);
+    return 0;
+}
+
 int findUser(IDTp frdID, map<IDTp, User*>* pusersbyID/*and redis*/, User** outppusermap, User* outpuserRedis){
     if(puserfrommapID(frdID, pusersbyID, outppusermap) < 0){
         if(findinredis("127.0.0.1", 6379,frdID, *outpuserRedis) < 0){

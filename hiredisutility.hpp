@@ -8,6 +8,8 @@
 #include"hiredis/sds.h"
 #include<iostream>
 #include<stdarg.h>
+#include<queue>
+#include<vector>
 
 typedef unsigned short PortTp;
 
@@ -56,14 +58,21 @@ public:
         freeReplyObject(predisReply);
         return val;
     }
+
     void getset(const std::string& key, const std::string& val){
         std::cout <<"getset:\n"<< key << std::endl << val<<std::endl;
         redisCommand(predisContext, "GETSET %s %s",key.c_str(), val.c_str());
     }
+
+    void del(const std::string& key){
+        std::cout <<"delete:\n"<< key << std::endl;
+        redisCommand(predisContext, "DEL %s",key.c_str());
+
+    }
+
     int geterr(){
         return err;
     }
-
 
 private:
     std::string ipaddr;
@@ -72,4 +81,10 @@ private:
     redisReply* predisReply;
     int err;
 };
+
+
+
+
+
+
 #endif
