@@ -5,8 +5,8 @@ all: client.out server.out
 
 client.out: client.o
 	$(CC) $(FLAG) $^ -o $@
-server.out: server.o extractID.o dealconnmsg.o dealloginedmsg.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o \
-dealsignup3.o puserfrommapID.o otherfunc.o 
+server.out: server.o extractID.o dealconnmsg.o checkonline.o dealmsg.o IDandname.o ultoa.o dealsigninorup.o dealsignin.o dealsignup1.o dealsignup2.o \
+dealsignup3.o puserfrommapID.o otherfunc.o cacheUID.o 
 
 	$(CC) $(FLAG) $(LIB) -lhiredis -lmysqlclient $^ -o $@
 
@@ -22,10 +22,10 @@ extractID.o: extractID.cpp extractID.hpp utility.hpp
 dealconnmsg.o: dealconnmsg.cpp dealconnmsg.hpp IDandname.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
-dealloginedmsg.o: dealloginedmsg.cpp dealloginedmsg.hpp extractID.hpp ultoa.hpp utility.hpp
+checkonline.o: checkonline.cpp checkonline.hpp extractID.hpp ultoa.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
-dealmsg.o: dealmsg.cpp dealmsg.hpp dealloginedmsg.hpp ultoa.hpp utility.hpp otherfunc.hpp
+dealmsg.o: dealmsg.cpp dealmsg.hpp checkonline.hpp ultoa.hpp utility.hpp otherfunc.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
 IDandname.o: IDandname.cpp IDandname.hpp utility.hpp
@@ -55,6 +55,8 @@ puserfrommapID.o: puserfrommapID.cpp puserfrommapID.hpp utility.hpp
 otherfunc.o: otherfunc.cpp otherfunc.hpp utility.hpp
 	$(CC) $(FLAG) -c $< -o $@
 
+cacheUID.o: cacheUID.cpp cacheUID.hpp
+	$(CC) $(FLAG) -c $< -o $@
 
 utility.hpp: hiredisutility.hpp
 

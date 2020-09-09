@@ -6,7 +6,7 @@
 #include<algorithm>
 #include"extractID.hpp"
 #include"dealconnmsg.hpp"
-#include"dealloginedmsg.hpp"
+#include"checkonline.hpp"
 #include"dealmsg.hpp"
 #include"dealsigninorup.hpp"
 #include"dealsignin.hpp"
@@ -14,6 +14,7 @@
 #include"dealsignup2.hpp"
 #include"dealsignup3.hpp"
 #include"otherfunc.hpp"
+#include"cacheUID.hpp"
 
 using namespace std;
 int max(int a, int b){
@@ -99,26 +100,18 @@ int main(int argc, char** argv){
                     cout << "closed: " << iterfd->second->getID()<<endl;
                     FD_CLR(iterfd->first, &allset);
 
-                    iterfd->second->setsts(NONE);
-
+                    
                     if(iterfd->second->getsts() == PEERSET){
-
-                        const char buf[] = "the peer has logined out\n";
-                        write(iterfd->second->getpeeruser()->getsockfd(), buf, sizeof(buf));
-                        iterfd->second->getpeeruser()->setsts(LOGINED);
-
-                        //write redis
-                        if(writeRedisUser("127.0.0.1", 6379, *iterfd->second) < 0){
-                            cout << "logout, but failed to write redis, because can't connect to the redis" << endl;
-                        };                    
-
+                        if(nullptr != iterfd->second->getppeeronline()) {// means the peer online 
+                            iterfd->second->setsts(NONE);
+                            const char buf[] = "the peer has logined out\n";
+                            write(iterfd->second->getppeeronline()->getsockfd(), buf, sizeof(buf));
+                            iterfd->second->getppeeronline()->setppeeronline(nullptr);
+                        }
                     }
-                    else if(iterfd->second->getsts() == LOGINED){
-                        //write redis
-                        if(writeRedisUser("127.0.0.1", 6379, *iterfd->second) < 0){
-                            cout << "logout, but failed to write redis, because can't connect to the redis" << endl;
-                        };                    
-                    }
+                    CacheUID::push(*iterfd->second); 
+                    //writeOrModifyUserRedis("127.0.0.1", 6379, *iterfd->second);
+                    updateMySQLUser(*iterfd->second);
                     
                     usersbyID.erase(iterfd->second->getID()); 
                     delete iterfd->second;

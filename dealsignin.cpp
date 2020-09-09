@@ -5,7 +5,7 @@
 #include"hiredis/hiredis.h"
 #include"ultoa.hpp"
 #include"otherfunc.hpp"
-#include"CacheUID.hpp"
+#include"cacheUID.hpp"
 using namespace std;
 
 
@@ -21,8 +21,8 @@ static void succlogin(User*puser, map<int, User*>::iterator iterfd){
         write(iterfd->first, msg.c_str(), msg.size());
         puser->readmsg(); 
     }
-    
-    writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
+    CacheUID::push(*puser); 
+    //writeOrModifyUserRedis("127.0.0.1", 6379,*puser);
     updateMySQLUser(*puser);
     msg = "You can input \"!!to <ID>\"to Chat with user identified by ID number.\n";
     write(iterfd->first, msg.c_str(), msg.size());
@@ -43,13 +43,17 @@ int dealsignin(map<int, User*>::iterator iterfd, map<int, User*>* pusersbysockfd
     }
     where = findUser(IDtmp, pusersbyID,&ptargtuserinmap, &targtuserinDb);
     if(where < 0){
-        msg = "the user doesn't exist, please choose \"sign in\" or \"sign up\"\n";
+        msg = "the user doesn't exist. please choose \"sign in\" or \"sign up\"\n";
         iterfd->second->setsts(CONNECTED);
         write(iterfd->first, msg, strlen(msg));
         return 0;
     } 
     else if(where == 0){ // in map
-        ptargtuser = ptargtuserinmap;
+        msg = "the user had signed in somewhere. please choose \"sign in\" or \"sign up\"\n";
+        iterfd->second->setsts(CONNECTED);
+        write(iterfd->first, msg, strlen(msg));
+        return 0;
+        //ptargtuser = ptargtuserinmap;
     }
     else{
         ptargtuser = &targtuserinDb;

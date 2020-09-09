@@ -105,10 +105,10 @@ int delUserRedis(string ipaddr, PortTp port, IDTp ID){
     return 0;
 }
 
-int findUser(IDTp frdID, map<IDTp, User*>* pusersbyID/*and redis*/, User** outppusermap, User* outpuserRedis){
+int findUser(IDTp frdID, map<IDTp, User*>* pusersbyID/*and redis*/, User** outppusermap, User* outpuserinDb){
     if(puserfrommapID(frdID, pusersbyID, outppusermap) < 0){
-        if(findinredis("127.0.0.1", 6379,frdID, *outpuserRedis) < 0){
-            if(findUserinMySQL(frdID, *outpuserRedis) < 0){
+        if(findinredis("127.0.0.1", 6379,frdID, *outpuserinDb) < 0){
+            if(findUserinMySQL(frdID, *outpuserinDb) < 0){
                 return -1;
             }
             else{

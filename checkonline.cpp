@@ -2,7 +2,7 @@
 #include<cstring>
 #include<stdio.h>
 #include<algorithm>
-#include"dealloginedmsg.hpp"
+#include"checkonline.hpp"
 #include"extractID.hpp"
 #include"ultoa.hpp"
 #include"otherfunc.hpp"
@@ -17,21 +17,21 @@ int main(){
     cout << "cnt: " << cnt << endl<< "arr: " << arr<<endl;
 }
 */
-static string onlinemsg(User& userfound, User* puser, string IDstr){
+static string onlinemsg(User& userfound, User& user, string IDstr){
     string msg;
-    puser->setpeeruser(&userfound);
-    userfound.setpeeruser(puser);
-    puser->setsts(PEERSET);
-    userfound.setsts(PEERSET);
+    user.setpeerID(userfound.getpeerID());
+    user.setppeeronline(&userfound);
+
+    user.setsts(PEERSET);
     msg = move(string("Find the user:("));
     msg.append(IDstr).append(",").append(userfound.getname()).append("), and you can chat now!\n");
     return msg;
 }
 
-static string offlinemsg(User& userfound, User* puser, string IDstr){
+static string offlinemsg(User& userfound, User& user, string IDstr){
     string msg;
-    puser->setpeeruser(&userfound);
-    puser->setsts(PEERSET);
+    user.setpeerID(userfound.getID());
+    user.setsts(PEERSET);
     msg = move(string("Find the user:(")).append(IDstr);
     msg.append("), but the peer doesn't sign in.\nYou can still send messages, which will be shown when the user signs in\n");
     return msg;
@@ -40,13 +40,14 @@ static string offlinemsg(User& userfound, User* puser, string IDstr){
 
 
 
-int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  char* str, size_t n){
+int checkonline(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  char* str, size_t n){
 
     const char* strtmp;
     string msg;
     char IDbuf[20];
     string IDstr;
-    
+    User *puserinmap, userinDb, *ppeeruser;
+    int where;
     if(n < 2){
         goto formatmsg; // ID format error
     }
@@ -62,21 +63,16 @@ int dealloginedmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyI
             }
             IDstr=string(IDbuf);
 
-            auto it = pusersbyID->find(IDtmp);
-            if(it == pusersbyID->end()){
-                User user;
-                if(findinredis("127.0.0.1",6379,IDtmp, user) < 0){
-                    //find in MySQL....
-                    msg = string("This user does not exist\n");
-                }
-                else{
-                    User* puserfound = new User(move(user));
-                    pusersbyID->emplace(puserfound->getID(),puserfound);
-                    msg = offlinemsg(*puserfound,puser, IDstr);
-                }
+            where = findUser(IDtmp,pusersbyID,&puserinmap,&userinDb);
+            if(where < 0){
+                msg = string("This user does not exist\n");
             }
-            else{
-                msg = onlinemsg(*it->second, puser, IDstr);
+            else if(0 == where){
+                msg = onlinemsg(*puserinmap, *puser, IDstr);
+    
+            }
+            else {
+                msg = offlinemsg(userinDb,*puser, IDstr);
             }
 
             write(sockfd, msg.c_str(), msg.size());

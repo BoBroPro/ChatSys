@@ -1,11 +1,12 @@
+#ifndef CACHEUID_HPP
+#define CACHEUID_HPP
+
 #include"utility.hpp"
 #include<queue>
 #include<vector>
 #include"otherfunc.hpp"
 
 using namespace std;
-
-class CacheUID{
 
 class TimeUID{
     public:
@@ -22,19 +23,29 @@ class TimeUID{
     IDTp ID;
 };
 
-    enum{ CASHSIZE  = 4, };
+class CacheUID{
+
+    enum{ CASHSIZE  = 2, };
 
 public:
     static void push(const User& user){
         if(userpq.size() >= CASHSIZE){
+            User targtuser;
+            if(findinredis("127.0.0.1", 6379,userpq.top().ID, targtuser) < 0){
+                //nothing
+            }
+            else{
+                delUserRedis("127.0.0.1", 6379, userpq.top().ID);
+            }
             userpq.pop(); 
-            delUserRedis("127.0.0.1", 6379, user.getID());
         }
         userpq.emplace(time(NULL), user.getID());
         writeOrModifyUserRedis("127.0.0.1", 6379,user);
+        return;
     }
 
 private:
     static priority_queue<TimeUID, vector<TimeUID>, greater<TimeUID>> userpq;     
-
 };
+
+#endif

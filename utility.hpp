@@ -54,8 +54,8 @@ friend void from_json(const json& j, User& u);
     //friend bool  operator<(User u1, User u2);
     //friend bool operator==(User u1, User u2);
 public:
-    User() : ID(0), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
-    User(IDTp ID_, std::string passwd_):ID(ID_), passwd(passwd_), name(""), ipaddr(""),peeruser(NULL),sts(NONE){}
+    User() : ID(0), name(""), ipaddr(""),peerID(0),ppeerOnline(NULL),sts(NONE){}
+    User(IDTp ID_, std::string passwd_):ID(ID_), passwd(passwd_), name(""), ipaddr(""),peerID(0),ppeerOnline(NULL),sts(NONE){}
     //User(int sockfd_):sockfd(sockfd_){};
     User(const User& user) = delete;
 
@@ -63,7 +63,8 @@ public:
         this->ID = user.ID;
         this->name = user.name;
         this->ipaddr = user.ipaddr;
-        this->peeruser = user.peeruser;
+        this->peerID= user.peerID;
+        this->ppeerOnline = user.ppeerOnline;
         this->passwd = user.passwd;
         this->sts = user.sts;
         this->sockfd = user.sockfd;
@@ -80,7 +81,8 @@ public:
         this->ID = user.ID;
         this->name = user.name;
         this->ipaddr = user.ipaddr;
-        this->peeruser = user.peeruser;
+        this->peerID= user.peerID;
+        this->ppeerOnline = user.ppeerOnline;
         this->passwd = user.passwd;
         this->sts = user.sts;
         this->sockfd = user.sockfd;
@@ -101,7 +103,8 @@ private:
     std::string passwdchck;
     std::string name; 
     std::string ipaddr;
-    User* peeruser;
+    IDTp peerID;
+    User* ppeerOnline;
     state sts;    
     
     int sockfd;
@@ -155,11 +158,18 @@ public:
         return ipaddr;
     }
 
-    void setpeeruser(User* peeruser_){
-        peeruser = peeruser_;
+    void setpeerID(IDTp peerID_){
+        peerID = peerID_;
     }
-    User* getpeeruser()const{
-        return peeruser;
+    IDTp getpeerID()const{
+        return peerID;
+    }
+
+    void setppeeronline(User* u){
+        ppeerOnline = u; 
+    }
+    User* getppeeronline(){
+        return ppeerOnline; 
     }
 
     void setsts(state sts_){

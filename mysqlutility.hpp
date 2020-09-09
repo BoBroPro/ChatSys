@@ -26,7 +26,9 @@ public:
 
     int quary(std::string statement){ //not for SELECT * FROM tablename.
         if(mysql_query(&mysqlconn, statement.c_str()) != 0){
-            std::cout << "query failure"<<std::endl;
+            std::cout << "query failure:\n"<<std::endl;
+            std::cout << statement.c_str()<<std::endl;
+
             return -1;
         }
         return 0;

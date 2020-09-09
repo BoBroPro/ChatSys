@@ -2,12 +2,12 @@
 #include<stdio.h>
 #include<algorithm>
 #include"dealmsg.hpp"
-#include"dealloginedmsg.hpp"
+#include"checkonline.hpp"
 #include"ultoa.hpp"
 #include<iterator>
 #include"puserfrommapID.hpp"
 #include"otherfunc.hpp"
-#include"CacheUID.hpp"
+#include"cacheUID.hpp"
 
 using namespace std;
 
@@ -255,7 +255,7 @@ static void listfriends(int sockfd, list<IDTp>*pfrds, map<IDTp, User*>* pusersby
     return;
 }
 
-static void sendmsg(int sockfd, User& user, User& peeruser,  char* str, size_t n){
+static void sendmsg(int sockfd, User& user, map<unsigned long, User*>* pusersbyID, char* str, size_t n){
     string msg;
     char IDbuf[20];
     ultoa(IDbuf, sizeof(IDbuf), user.getID());
@@ -264,23 +264,26 @@ static void sendmsg(int sockfd, User& user, User& peeruser,  char* str, size_t n
     for(int i = 0; i< n; ++i){
         msg.push_back(str[i]);
     }
-    if(peeruser.getsts()!=LOGINED && peeruser.getsts()!=PEERSET){
-        peeruser.getpmsgsnotread()->push_back(msg);
+    if(nullptr != user.getppeeronline()){ //the peer is online
+        user.getppeeronline()->setpeerID(user.getID());
+        user.getppeeronline()->setsts(PEERSET);
+        write(user.getppeeronline()->getsockfd(), msg.c_str(), msg.size()+1);    
+        return;
+    }
+    else{
+        User userinDb;
+        if(findinredis("127.0.0.1", 6379,user.getpeerID(),userinDb) < 0) {
+            findUserinMySQL(user.getpeerID(), userinDb);
+        }
+        userinDb.getpmsgsnotread()->push_back(msg);
+        cout <<"ID:" << userinDb.getID()<<endl;
         // modify user data in  redis
-        CacheUID::push(peeruser);        
+        CacheUID::push(userinDb);        
         //writeOrModifyUserRedis("127.0.0.1", 6379,peeruser);
-        updateMySQLUser(peeruser);
+        updateMySQLUser(userinDb);
+    
         return ;
     }
-
-    int peerusersockfd = peeruser.getsockfd();
-    if(peeruser.getsts() == LOGINED){
-        peeruser.setpeeruser(&user);
-        peeruser.setsts(PEERSET);
-    }
-
-    write(peerusersockfd, msg.c_str(), msg.size()+1);    
-
     return;
 } 
 
@@ -296,11 +299,10 @@ int dealmsg(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  cha
     const char* listaddfriend= "listaddfriend\n";
     int i = 0; 
     IDTp frdID;
-    User* ppeeruser = puser->getpeeruser();
     if(n > 2){
         if(str[0] == '!' && str[1] == '!'){
             if(n > 4 && equalchars(str+2, "to", 2)){
-                dealloginedmsg(sockfd, puser, pusersbyID, str, n);
+                checkonline(sockfd, puser, pusersbyID, str, n);
             }
             else if(n > 2+strlen(addfriend) && equalchars(str+2, addfriend,strlen(addfriend)-1)){
                 frdID = atol(str+2+strlen(addfriend));
@@ -362,7 +364,7 @@ sendmsg:
         return 0;
     }
 
-    sendmsg(sockfd, *puser, *puser->getpeeruser(), str, n);
+    sendmsg(sockfd, *puser, pusersbyID,str, n);
     return 0;
 }
 
