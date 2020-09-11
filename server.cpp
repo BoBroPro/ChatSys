@@ -1,4 +1,6 @@
 #include"utility.hpp"
+#include<sys/epoll.h>
+#include<fcntl.h>
 #include<set>
 #include<iterator>
 #include<map>
@@ -16,10 +18,24 @@
 #include"otherfunc.hpp"
 #include"cacheUID.hpp"
 
+enum {
+    MAX_EVENTS = 10000,
+};
+
+
 using namespace std;
 int max(int a, int b){
     return a > b? a:b;
 }
+
+static int setnonblocking(int sockfd)  
+{  
+    if (fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFD, 0)| O_NONBLOCK) == -1)  
+    {  
+        return -1;  
+    }  
+    return 0;  
+} 
 
 int main(int argc, char** argv){
 
@@ -29,12 +45,14 @@ int main(int argc, char** argv){
     int listenfd, connfd;
     int maxfd;
     fd_set rset, allset;
-    int n;
+    int n, d;
     set<int> fds;
     map<int, User*> usersbysockfd;
     map<unsigned long, User*> usersbyID;
     char sendline[MAXBUFLEN], recvline[MAXBUFLEN];
-
+    char strip[22];
+    printf("hello world\n");
+    int nfds, i;
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
     memset(&servaddr, 0, sizeof(servaddr));
@@ -45,117 +63,146 @@ int main(int argc, char** argv){
 
     bind(listenfd, &servaddr, sizeof(servaddr));
     listen(listenfd,LINSTENQ);
-    FD_ZERO(&allset); 
-    FD_SET(listenfd, &allset);
-    FD_SET(fileno(stdin),&allset);
-    maxfd = max(listenfd,fileno(stdin));
-    char strip[22];
-    printf("hello world\n");
-    int d = 0;
+
+    struct epoll_event ev, events[MAX_EVENTS];
+    int epfd = epoll_create(10);
+    if(epfd == -1){
+        perror("epoll_create");
+        exit(EXIT_FAILURE);
+    }
+    ev.events = EPOLLIN;   
+    ev.data.fd= listenfd;
+    if(epoll_ctl(epfd, EPOLL_CTL_ADD, listenfd, &ev) == -1){
+        perror("epoll_ctl: listen_sock");
+        exit(EXIT_FAILURE);
+    }
+    ev.events = EPOLLIN | EPOLLET;
+    ev.data.fd = fileno(stdin);
+    setnonblocking(fileno(stdin));
+    if(epoll_ctl(epfd, EPOLL_CTL_ADD, fileno(stdin),&ev) == -1){
+        perror("epoll_ctl");
+    }
+
     for(;;){
-        rset = allset;
         cout << "round: " << ++d<<endl;
-        select(maxfd+1, &rset, NULL, NULL, 0);
-
-        if(FD_ISSET(listenfd, &rset)){
-            clilen = sizeof(cliaddr);
-            if((connfd = accept(listenfd, &cliaddr, &clilen)) < 0){
-                printf("connect error");
-            }
-            cout << connfd << endl;
-            inet_ntop(AF_INET, &cliaddr, strip, sizeof(strip)); 
-            //printf("the peer ip: %s\n", strip);
-
-            
-            User* puser = new User();
-            puser->setipaddr(string(strip));
-            puser->setsts(CONNECTED);
-            usersbysockfd.emplace(connfd, puser);
-            
-           
-            maxfd = max(connfd, maxfd);
-            FD_SET(connfd, &allset);
-
-            char buf[] = "sign in or sign up? input\"sign in\" or \"sign up\"\n";
-            write(connfd,  buf, sizeof(buf));
-        }
-        if(FD_ISSET(fileno(stdin),&rset)){
-            if((n = read(fileno(stdin),recvline, MAXBUFLEN)) == 0){
-                for(auto it = usersbysockfd.begin();it!= usersbysockfd.end();++it){
-                    close(it->first);
-                    cout << "close: " << it->first<<endl;
-                }
-                close(listenfd);
-                return 0;
-            }
+        if((nfds = epoll_wait(epfd, events, MAX_EVENTS, -1)) == -1){
+            perror("epoll_wait");
+            exit(EXIT_FAILURE);
         }
 
-        for(auto iterfd = usersbysockfd.begin(); iterfd!= usersbysockfd.end(); ){
-            if(FD_ISSET(iterfd->first, &rset)){
-                if((n = read(iterfd->first, recvline, MAXBUFLEN)) < 0){
-                    perror("Error occour:");
+        for(i = 0; i< nfds; ++i){
+            if(events[i].data.fd == listenfd){
+                connfd = accept(listenfd, &cliaddr, &clilen);
+                if(connfd == -1){
+                    perror("accept");
                 }
-                else if(n == 0){
-                    close(iterfd->first);
-                    cout << "closed: " << iterfd->second->getID()<<endl;
-                    FD_CLR(iterfd->first, &allset);
+                cout << "successful connection"<<endl;
+                ev.events = EPOLLIN;
+                ev.data.fd = connfd;
+                setnonblocking(connfd);
+                if(epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) == -1){
+                    perror("epoll_ctl: connfd");
+                }
 
-                    
-                    if(iterfd->second->getsts() == PEERSET){
-                        if(nullptr != iterfd->second->getppeeronline()) {// means the peer online 
-                            iterfd->second->setsts(NONE);
-                            const char buf[] = "the peer has logined out\n";
-                            write(iterfd->second->getppeeronline()->getsockfd(), buf, sizeof(buf));
-                            iterfd->second->getppeeronline()->setppeeronline(nullptr);
+                inet_ntop(AF_INET, &cliaddr, strip, sizeof(strip)); 
+                //printf("the peer ip: %s\n", strip);
+            
+                User* puser = new User();
+                puser->setipaddr(string(strip));
+                puser->setsts(CONNECTED);
+                usersbysockfd.emplace(connfd, puser);
+                char buf[] = "sign in or sign up? input\"sign in\" or \"sign up\"\n";
+                write(connfd,  buf, sizeof(buf));
+            }
+            else{
+                if(events[i].data.fd == fileno(stdin)){
+
+                    if((n = read(fileno(stdin),recvline, MAXBUFLEN)) == 0){
+                        for(auto it = usersbysockfd.begin();it!= usersbysockfd.end();++it){
+                            close(it->first);
+                            cout << "close: " << it->first<<endl;
+                        }
+                        close(listenfd);
+                        return 0;
+                    }
+                }
+                else{
+                    int eventfd = events[i].data.fd;
+                    for(;;) {
+
+                        if((n = read(eventfd, recvline, MAXBUFLEN)) < 0){
+                            perror("Error occour:");
+                            break;
+                        }
+                        else if(n == 0){
+                            map<int, User*>::iterator iterfd;
+                            close(eventfd);
+                            iterfd = usersbysockfd.find(eventfd);
+                            cout << "closed: " << iterfd->second->getID()<<endl;
+
+                            if(iterfd->second->getsts() == PEERSET){
+                                if(usersbyID.find(iterfd->second->getppeeronline()->getID()) != usersbyID.end()){
+
+                                    const char buf[] = "the peer has logined out\n";
+                                    write(iterfd->second->getppeeronline()->getsockfd(), buf, sizeof(buf));
+                                }
+                            }
+
+                            if(iterfd->second->getID() == 0){
+
+                                delete iterfd->second;
+                                usersbysockfd.erase(iterfd);
+                                break;
+                            }
+                            CacheUID::push(*iterfd->second); 
+                            //writeOrModifyUserRedis("127.0.0.1", 6379, *iterfd->second);
+                            updateMySQLUser(*iterfd->second);
+
+                            usersbyID.erase(iterfd->second->getID()); 
+                            delete iterfd->second;
+                            usersbysockfd.erase(iterfd);
+                            break;
+                        }
+                        else {
+                            //cout << "this is recvline: " << recvline<<endl;
+                            map<int, User*>::iterator iteruserbysockfd;
+                            if((iteruserbysockfd = usersbysockfd.find(eventfd)) != usersbysockfd.end()){
+
+                                if(iteruserbysockfd->second->getsts() == CONNECTED){
+                                    cout << "Connected" <<endl;
+                                    dealsigninorup(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                                    //dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
+                                }
+                                else if(iteruserbysockfd->second->getsts() == INSIGNIN){
+                                    dealsignin(iteruserbysockfd, &usersbysockfd, &usersbyID, recvline, n);
+                                }
+                                else if(iteruserbysockfd->second->getsts() == INSIGNUP1){
+                                    dealsignup1(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
+                                } 
+                                else if(iteruserbysockfd->second->getsts() == INSIGNUP2){
+                                    dealsignup2(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
+                                }
+                                else if(iteruserbysockfd->second->getsts() == INSIGNUP3){
+                                    dealsignup3(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,recvline, n);
+                                    usersbyID.emplace(iteruserbysockfd->second->getID(), iteruserbysockfd->second);
+                                }
+                                else{
+                                    cout << "logined" <<endl;
+                                    dealmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
+                                }
+            
+                            }          
+                            if(n < MAXBUFLEN){
+                                break;
+                            }
                         }
                     }
-                    CacheUID::push(*iterfd->second); 
-                    //writeOrModifyUserRedis("127.0.0.1", 6379, *iterfd->second);
-                    updateMySQLUser(*iterfd->second);
-                    
-                    usersbyID.erase(iterfd->second->getID()); 
-                    delete iterfd->second;
-                    usersbysockfd.erase(iterfd);
-
-                    iterfd= usersbysockfd.begin();//It's ok because corresponding rset flag was cleared.
-                    continue;
-                }
-
-                else{
-                    //cout << "this is recvline: " << recvline<<endl;
-                    map<int, User*>::iterator iteruserbysockfd;
-                    if((iteruserbysockfd = usersbysockfd.find(iterfd->first)) != usersbysockfd.end()){
-
-                        if(iteruserbysockfd->second->getsts() == CONNECTED){
-                            cout << "Connected" <<endl;
-                            dealsigninorup(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
-                            //dealconnmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,  recvline, n);
-                        }
-                        else if(iteruserbysockfd->second->getsts() == INSIGNIN){
-                            dealsignin(iteruserbysockfd, &usersbysockfd, &usersbyID, recvline, n);
-                        }
-                        else if(iteruserbysockfd->second->getsts() == INSIGNUP1){
-                            dealsignup1(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
-                        } 
-                        else if(iteruserbysockfd->second->getsts() == INSIGNUP2){
-                            dealsignup2(iteruserbysockfd->first, iteruserbysockfd->second, recvline, n);
-                        }
-                        else if(iteruserbysockfd->second->getsts() == INSIGNUP3){
-                            dealsignup3(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID,recvline, n);
-                            usersbyID.emplace(iteruserbysockfd->second->getID(), iteruserbysockfd->second);
-                        }
-                        else{
-                            cout << "logined" <<endl;
-                            dealmsg(iteruserbysockfd->first, iteruserbysockfd->second, &usersbyID, recvline, n);
-                        }
-            
-                    }          
                 }
 
             }
-            ++iterfd;
         }
     }
+    close(listenfd);
     return 0;
 
 }

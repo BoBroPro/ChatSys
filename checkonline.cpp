@@ -19,10 +19,14 @@ int main(){
 */
 static string onlinemsg(User& userfound, User& user, string IDstr){
     string msg;
-    user.setpeerID(userfound.getpeerID());
+    user.setpeerID(userfound.getID());
     user.setppeeronline(&userfound);
-
+    userfound.setpeerID(user.getID());
+    userfound.setppeeronline(&user);
     user.setsts(PEERSET);
+    userfound.setsts(PEERSET);
+    cout <<"userfound: " << userfound.getID()<<endl; 
+
     msg = move(string("Find the user:("));
     msg.append(IDstr).append(",").append(userfound.getname()).append("), and you can chat now!\n");
     return msg;
@@ -36,8 +40,6 @@ static string offlinemsg(User& userfound, User& user, string IDstr){
     msg.append("), but the peer doesn't sign in.\nYou can still send messages, which will be shown when the user signs in\n");
     return msg;
 }
-
-
 
 
 int checkonline(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID,  char* str, size_t n){
@@ -63,16 +65,24 @@ int checkonline(int sockfd, User* puser, map<unsigned long, User*>* pusersbyID, 
             }
             IDstr=string(IDbuf);
 
-            where = findUser(IDtmp,pusersbyID,&puserinmap,&userinDb);
-            if(where < 0){
-                msg = string("This user does not exist\n");
+            // find the peer in  friend list
+            list<IDTp>* pfrds = puser->getpfrds();
+            if (find(pfrds->begin(),pfrds->end(),IDtmp) == pfrds->end()){
+                msg = string("the user(");
+                msg.append(IDstr).append(")is not your friend.\n");
             }
-            else if(0 == where){
-                msg = onlinemsg(*puserinmap, *puser, IDstr);
+            else{
+                where = findUser(IDtmp,pusersbyID,&puserinmap,&userinDb);
+                if(where < 0){
+                    msg = string("This user does not exist\n");
+                }
+                else if(0 == where){
+                    msg = onlinemsg(*puserinmap, *puser, IDstr);
     
-            }
-            else {
-                msg = offlinemsg(userinDb,*puser, IDstr);
+                }
+                else {
+                    msg = offlinemsg(userinDb,*puser, IDstr);
+                }
             }
 
             write(sockfd, msg.c_str(), msg.size());

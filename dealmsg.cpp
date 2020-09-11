@@ -215,8 +215,7 @@ static void listfrdonline(int sockfd, User*puser, map<IDTp, User*>* pusersbyID){
     string userinfo;
     for(auto it = pfrds->begin(); it != pfrds->end(); ++ it){
         map<IDTp, User*>::iterator itusersbyID;
-        if((itusersbyID = pusersbyID->find(*it)) != pusersbyID->end() && \
-         itusersbyID->second->getsts()==LOGINED){
+        if((itusersbyID = pusersbyID->find(*it)) != pusersbyID->end()){
 
             userinfo = userinfo2str(itusersbyID->second);
             write(sockfd, userinfo.c_str(), strlen(userinfo.c_str()));
@@ -260,14 +259,19 @@ static void sendmsg(int sockfd, User& user, map<unsigned long, User*>* pusersbyI
     char IDbuf[20];
     ultoa(IDbuf, sizeof(IDbuf), user.getID());
     string IDstr = string(IDbuf);
+    int where = 0;
+    User* puserinmap, userinDb;
     msg = msg.append(IDstr).append(",").append(user.getname()).append(": ");
     for(int i = 0; i< n; ++i){
         msg.push_back(str[i]);
     }
-    if(nullptr != user.getppeeronline()){ //the peer is online
-        user.getppeeronline()->setpeerID(user.getID());
+    cout << "user.getpeerID():" << endl;
+    if(pusersbyID->find(user.getpeerID()) != pusersbyID->end()){
         user.getppeeronline()->setsts(PEERSET);
-        write(user.getppeeronline()->getsockfd(), msg.c_str(), msg.size()+1);    
+        user.getppeeronline()->setpeerID(user.getID());
+        user.getppeeronline()->setppeeronline(&user);
+        cout << " the msg: "<< msg<<endl;
+        write(user.getppeeronline()->getsockfd(), msg.c_str(), msg.size());    
         return;
     }
     else{
