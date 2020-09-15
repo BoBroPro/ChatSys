@@ -6,13 +6,13 @@ ChatSys is a chat system based on linux, including that user registration, login
 
 Requires:
 
-   nlohmann/json  <https://github.com/nlohmann/json>
-
-   hiredis https://github.com/redis/hiredis
+   * nlohmann/json  <https://github.com/nlohmann/json>
+   * hiredis https://github.com/redis/hiredis
 
 
 
 Tested on:
 
-   CentOS8
+​        CentOS8
+
 
