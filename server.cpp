@@ -97,7 +97,7 @@ int main(int argc, char** argv){
                     perror("accept");
                 }
                 cout << "successful connection"<<endl;
-                ev.events = EPOLLIN;
+                ev.events = EPOLLIN | EPOLLET;
                 ev.data.fd = connfd;
                 setnonblocking(connfd);
                 if(epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) == -1){
